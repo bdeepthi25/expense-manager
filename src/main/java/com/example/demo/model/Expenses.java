@@ -18,9 +18,11 @@ public class Expenses {
 	private String expenseType;
 	private double amount;
 	private LocalDate expenseDate;
+	private Long userId;
+	
 	
 	@ManyToOne
-	@JoinColumn(name = "userId")
+	@JoinColumn(name = "userId", insertable = false, updatable = false)
 	private Users users;
 //		→ This means the column created is user_id, not the full Users object
 	

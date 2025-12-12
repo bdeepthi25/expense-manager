@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.example.demo.dto.ExpenseDTO;
 import com.example.demo.model.Expenses;
+
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -15,4 +17,9 @@ public interface ExpenseRepository extends JpaRepository<Expenses, Long>{
 //SELECT * FROM expenses WHERE user_id = ?
 	public  List<Expenses> findByUsers_Id(Long userId);
 
+	public boolean existsByExpenseTypeAndAmountAndExpenseDateAndUserId(
+			String expenseType,
+	        double amount,
+	        LocalDate expenseDate,
+	        Long userId);
 }

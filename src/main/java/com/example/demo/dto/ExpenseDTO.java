@@ -2,11 +2,22 @@ package com.example.demo.dto;
 
 import java.time.LocalDate;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Positive;
+
 public class ExpenseDTO {
+	
+	@NotBlank
 	private Long expenseId;
+	@NotBlank
 	private String expenseType;
+	@Positive
 	private double amount;
+	@PastOrPresent
 	private LocalDate expenseDate;
+	@NotNull
 	private Long userId;
 	
 	public ExpenseDTO(Long expenseId, String expenseType, double amount, LocalDate expenseDate, Long userId) {
