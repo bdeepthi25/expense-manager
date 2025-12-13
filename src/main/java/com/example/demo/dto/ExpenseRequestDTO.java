@@ -6,45 +6,40 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
-
-public class ExpenseDTO {
+//(for create/update)
+public class ExpenseRequestDTO {
 	
-	@NotBlank
-	private Long expenseId;
-	@NotBlank
+
+	@NotBlank(message = "Expense type is required")
 	private String expenseType;
-	@Positive
+	@Positive(message = "Amount must be greater than 0")
 	private double amount;
-	@PastOrPresent
+	@NotNull(message = "Expense date is required")
+	@PastOrPresent(message = "Expense date cannot be in future")
 	private LocalDate expenseDate;
-	@NotNull
+	@NotNull(message = "UserId is required")
 	private Long userId;
 	
-	public ExpenseDTO(Long expenseId, String expenseType, double amount, LocalDate expenseDate, Long userId) {
+	public ExpenseRequestDTO( String expenseType, double amount, LocalDate expenseDate, Long userId) {
 		
-		this.expenseId = expenseId;
 		this.expenseType = expenseType;
 		this.amount = amount;
 		this.expenseDate = expenseDate;
 		this.userId = userId;
 	}
 	
-	public ExpenseDTO() {
+	public ExpenseRequestDTO() {
 		// TODO Auto-generated constructor stub
 	}
 
 	@Override
 	public String toString() {
-		return "ExpenseDTO [expenseId=" + expenseId + ", expenseType=" + expenseType + ", amount=" + amount
+		return "ExpenseDTO [  expenseType=" + expenseType + ", amount=" + amount
 				+ ", expenseDate=" + expenseDate + ", userId=" + userId + "]";
 	}
 
-	public Long getExpenseId() {
-		return expenseId;
-	}
-	public void setExpenseId(Long expenseId) {
-		this.expenseId = expenseId;
-	}
+	
+	
 	public String getExpenseType() {
 		return expenseType;
 	}

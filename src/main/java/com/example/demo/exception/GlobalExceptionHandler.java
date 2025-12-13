@@ -43,4 +43,17 @@ public class GlobalExceptionHandler {
 	{
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
 	}
+	
+	@ExceptionHandler(ExpenseNotFoundException.class)
+	public ResponseEntity<?> handleInvalidExpense(ExpenseNotFoundException ex)
+	{
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+	}
+	
+	@ExceptionHandler(UnauthorizedAccessException.class)
+	public ResponseEntity<?> handleUnauthorizedException(UnauthorizedAccessException ex)
+	{
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+		
+	}
 }
