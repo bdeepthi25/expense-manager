@@ -17,15 +17,14 @@ public class ExpenseRequestDTO {
 	@NotNull(message = "Expense date is required")
 	@PastOrPresent(message = "Expense date cannot be in future")
 	private LocalDate expenseDate;
-	@NotNull(message = "UserId is required")
-	private Long userId;
 	
-	public ExpenseRequestDTO( String expenseType, double amount, LocalDate expenseDate, Long userId) {
+	
+	public ExpenseRequestDTO( String expenseType, double amount, LocalDate expenseDate) {
 		
 		this.expenseType = expenseType;
 		this.amount = amount;
 		this.expenseDate = expenseDate;
-		this.userId = userId;
+		
 	}
 	
 	public ExpenseRequestDTO() {
@@ -35,7 +34,7 @@ public class ExpenseRequestDTO {
 	@Override
 	public String toString() {
 		return "ExpenseDTO [  expenseType=" + expenseType + ", amount=" + amount
-				+ ", expenseDate=" + expenseDate + ", userId=" + userId + "]";
+				+ ", expenseDate=" + expenseDate +  "]";
 	}
 
 	
@@ -58,11 +57,6 @@ public class ExpenseRequestDTO {
 	public void setExpenseDate(LocalDate expenseDate) {
 		this.expenseDate = expenseDate;
 	}
-	public Long getUserId() {
-		return userId;
-	}
-	public void setUserId(Long userId) {
-		this.userId = userId;
-	}
+	
 	
 }

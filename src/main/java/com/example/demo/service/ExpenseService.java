@@ -1,12 +1,16 @@
 package com.example.demo.service;
 
+
 import java.time.LocalDate;
 
 import java.util.List;
-
+import org.springframework.data.domain.Pageable;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 
@@ -41,25 +45,21 @@ public class ExpenseService {
 	
 	public ExpenseResponseDTO createExpense(ExpenseRequestDTO expenseDto)
 	{
-//		removed as there are validations in ExpenseRequestDTO
-//		if(expenseDto.getAmount() <= 0)
-//		{
-//			throw new InvalidAmountException("Amount must be greater than 0");
-//		}
-//		if(expenseDto.getExpenseDate().isAfter( LocalDate.now()))
-//		{
-//			throw new InvalidDateException( "Do not give future Date, Please fill with past Dates");
-//		}
+
+		 // 1️⃣ Get logged-in user email from JWT
+	    String email = SecurityContextHolder.getContext()
+	            .getAuthentication()
+	            .getName();
 		
-		Users user = userRepo.findById(expenseDto.getUserId())
+		Users user = userRepo.findByEmail(email)
 				.orElseThrow( () -> new UserNotFoundException( "User not found"));
 		
 		
-		boolean exists = expenseRepo.existsByExpenseTypeAndAmountAndExpenseDateAndUserId(
+		boolean exists = expenseRepo.existsByExpenseTypeAndAmountAndExpenseDateAndUsers(
 				expenseDto.getExpenseType(), 
 				expenseDto.getAmount(), 
 				expenseDto.getExpenseDate(), 
-				expenseDto.getUserId());
+				user);
 		if(exists)
 		{
 			throw new DuplicateExpenseException("Same Expense already exists");
@@ -78,12 +78,16 @@ public class ExpenseService {
 				newExpense.getExpenseDate());
 	}
 
-	public List<ExpenseResponseDTO> getExpensesOfUser(Long userId) {
+	public List<ExpenseResponseDTO> getMyExpenses() {
 				
-		userRepo.findById(userId)
+		String email = SecurityContextHolder.getContext()
+	            .getAuthentication()
+	            .getName();
+		
+		Users user = userRepo.findByEmail(email)
 				.orElseThrow( () -> new  UserNotFoundException("User not found"));
 		
-		return	expenseRepo.findByUsers_Id(userId)
+		return	expenseRepo.findByUsers_Id(user.getId())
 				.stream()
 				.map(e -> new ExpenseResponseDTO(
 						e.getExpenseId(),
@@ -96,9 +100,12 @@ public class ExpenseService {
 	
 	}
 
-	public ExpenseResponseDTO updateExpense(Long expenseId, Long userId, @Valid UpdateExpenseRequestDTO updateExpDto) {
+	public ExpenseResponseDTO updateExpense(Long expenseId, @Valid UpdateExpenseRequestDTO updateExpDto) {
 //		Validate user
-		Users user =  userRepo.findById(userId)
+		 String email = SecurityContextHolder.getContext()
+		            .getAuthentication()
+		            .getName();
+		Users user =  userRepo.findByEmail(email)
 						.orElseThrow( () -> new UserNotFoundException("User not found"));
 //		Validate expense
 		Expenses expense = expenseRepo.findById(expenseId)
@@ -109,11 +116,11 @@ public class ExpenseService {
 			throw new UnauthorizedAccessException("YOu can not update this expense");
 		}
 		
-		boolean exists = expenseRepo.existsByExpenseTypeAndAmountAndExpenseDateAndUsers_UserIdExpenseIdNot(
+		boolean exists = expenseRepo.existsByExpenseTypeAndAmountAndExpenseDateAndUsers_UserIdAndExpenseIdNot(
 				updateExpDto.getExpenseType(),
 				updateExpDto.getAmount(),
 				updateExpDto.getExpenseDate(),
-				userId,
+				user.getId(),
 				expenseId
 				);
 		
@@ -134,11 +141,12 @@ public class ExpenseService {
 										expense.getExpenseDate());
 	}
 
-	public void deleteExpense(Long expenseId, Long userId) {
+	public void deleteExpense(Long expenseId) {
 		
 //		Validate user
-		Users user =  userRepo.findById(userId)
-						.orElseThrow( () -> new UserNotFoundException("User not found"));
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+	    Users user = userRepo.findByEmail(email)
+	                .orElseThrow(() -> new UserNotFoundException("User not found"));
 //		Validate expense
 		Expenses expense = expenseRepo.findById(expenseId)
 								.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
@@ -150,4 +158,74 @@ public class ExpenseService {
 //       Delete
 	    expenseRepo.delete(expense);
 	}
+	
+	public Page<ExpenseResponseDTO> getExpensesOfUserPaginated(
+			Long userId, 
+			int page,
+			int size,
+			String sortBy,
+			String direction
+			)
+	{
+		Users user = userRepo.findById(userId)
+				.orElseThrow( () -> new UserNotFoundException( "User not found"));
+//		Sorting logic
+		Sort sort = direction.equalsIgnoreCase("desc")
+					? Sort.by(sortBy).descending()
+					: Sort.by(sortBy).ascending() ;
+		
+//		Pageable object
+		
+		Pageable pageable = PageRequest.of(page, size, sort);
+//		Fetch data
+		Page<Expenses> expensePage = expenseRepo.findByUsers_Id(userId, pageable);
+		
+		
+		System.out.println("Total Elements: " + expensePage.getTotalElements());
+		System.out.println("Total Pages: " + expensePage.getTotalPages());
+		System.out.println("Current Page: " + expensePage.getNumber());
+//		Map Entity → DTO
+		return expensePage.map( e ->
+				new ExpenseResponseDTO(
+						e.getExpenseId(), 
+						e.getExpenseType(), 
+						e.getAmount(), 
+						e.getExpenseDate())
+				) ;
+				
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 }

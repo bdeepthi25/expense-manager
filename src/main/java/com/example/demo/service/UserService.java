@@ -4,6 +4,8 @@ import java.util.Optional;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +16,7 @@ import com.example.demo.exception.InvalidCredentialsException;
 import com.example.demo.exception.UserNotFoundException;
 import com.example.demo.model.Users;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.security.JWTUtil;
 
 import jakarta.validation.Valid;
 
@@ -21,14 +24,18 @@ import jakarta.validation.Valid;
 public class UserService {
 
 	private final UserRepository userRepo;
-
-	public UserService(UserRepository userRepo) {
+	private final AuthenticationManager authenticationManager;
+    private final JWTUtil jwtUtil;
+	public UserService(UserRepository userRepo, JWTUtil jwtUtil, AuthenticationManager authenticationManager) {
 	
 		this.userRepo = userRepo;
+		this.authenticationManager = authenticationManager;
+		this.jwtUtil = jwtUtil;
 	}
  
 	@Autowired
 	private BCryptPasswordEncoder passwordEncoder;
+	
 	public @Nullable Object register(@Valid UserRegisterDTO regDto) {
 		
 		boolean exists = userRepo.existsByEmail(regDto.getEmail());
@@ -50,17 +57,23 @@ public class UserService {
 
 	public String login(@Valid UserLoginDTO loginDto) {
 		
-		Users user = userRepo.findByEmail(loginDto.getEmail())
-				.orElseThrow( () -> new  UserNotFoundException("User Not found. Please Register") );
+//		Users user = userRepo.findByEmail(loginDto.getEmail())
+//				.orElseThrow( () -> new  UserNotFoundException("User Not found. Please Register") );
+//		
+//		boolean matches = passwordEncoder.matches(loginDto.getPassword(), user.getPassword());
+//		
 		
-		boolean matches = passwordEncoder.matches(loginDto.getPassword(), user.getPassword());
+//		if(!matches)
+//		{
+//			throw new InvalidCredentialsException("Incorrect Password");
+//		}
 		
+		authenticationManager.authenticate(
+				new UsernamePasswordAuthenticationToken(loginDto.getEmail(), loginDto.getPassword())
+				);
 		
-		if(!matches)
-		{
-			throw new InvalidCredentialsException("Incorrect Password");
-		}
-		return "Login Successful";
+	    // If authentication fails → exception thrown automatically
+		return jwtUtil.generateToken(loginDto.getEmail()) ;
 	}
 	
 	

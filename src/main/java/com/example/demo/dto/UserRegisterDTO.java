@@ -15,6 +15,8 @@ public class UserRegisterDTO {
 	
 	@NotBlank(message="Password can not be empty")
 	private String password;
+	
+	
 	public String getUsername() {
 		return username;
 	}

@@ -9,6 +9,7 @@ public class UserLoginDTO {
 	
 	@NotBlank(message = "Password cannot be blank")
 	 private String password;
+	
 	 public String getEmail() {
 		 return email;
 	 }

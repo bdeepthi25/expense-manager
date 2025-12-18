@@ -3,6 +3,7 @@ package com.example.demo.model;
 import java.time.LocalDate;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -18,11 +19,11 @@ public class Expenses {
 	private String expenseType;
 	private double amount;
 	private LocalDate expenseDate;
-	private Long userId;
+//	private Long userId;
 	
 	
-	@ManyToOne
-	@JoinColumn(name = "userId", insertable = false, updatable = false)
+	@ManyToOne(fetch = FetchType.LAZY) 
+	@JoinColumn(name = "userId")
 	private Users users;
 //		→ This means the column created is user_id, not the full Users object
 	

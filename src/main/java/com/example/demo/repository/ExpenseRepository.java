@@ -1,8 +1,11 @@
 package com.example.demo.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.example.demo.model.Expenses;
+import com.example.demo.model.Users;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -15,18 +18,25 @@ public interface ExpenseRepository extends JpaRepository<Expenses, Long>{
 //So Spring generates:
 //SELECT * FROM expenses WHERE user_id = ?
 	public  List<Expenses> findByUsers_Id(Long userId);
+	public  Page<Expenses> findByUsers_Id(Long userId,  Pageable pageable);
 
-	public boolean existsByExpenseTypeAndAmountAndExpenseDateAndUserId(
-			String expenseType,
-	        double amount,
-	        LocalDate expenseDate,
-	        Long userId);
+//	public boolean existsByExpenseTypeAndAmountAndExpenseDateAndUserId(
+//			String expenseType,
+//	        double amount,
+//	        LocalDate expenseDate,
+//	        Long userId);
 	
-	public boolean existsByExpenseTypeAndAmountAndExpenseDateAndUsers_UserIdExpenseIdNot(
+	public boolean existsByExpenseTypeAndAmountAndExpenseDateAndUsers_UserIdAndExpenseIdNot(
 			String expenseType,
 			double amount,
 			LocalDate expenseDate,
 			Long userId,
 			Long expenseId
 			);
+	
+	public boolean existsByExpenseTypeAndAmountAndExpenseDateAndUsers(
+            String expenseType,
+            double amount,
+            LocalDate expenseDate,
+            Users user);
 }
