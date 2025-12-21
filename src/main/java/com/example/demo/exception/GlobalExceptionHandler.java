@@ -56,4 +56,16 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
 		
 	}
+	
+	@ExceptionHandler(UnauthorizedExpenseApprovalException.class)
+	public ResponseEntity<?> handleUnauthorizedExpenseApprovalException(UnauthorizedExpenseApprovalException ex)
+	{
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+	}
+	
+	@ExceptionHandler(ExpenseAlreadyProcessedException.class)
+	public ResponseEntity<?> handleExpenseAlreadyProcessedException(ExpenseAlreadyProcessedException ex)
+	{
+		return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ex.getMessage());
+	}
 }

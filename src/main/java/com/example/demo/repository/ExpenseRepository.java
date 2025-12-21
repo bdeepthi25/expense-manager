@@ -4,8 +4,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.example.demo.enums.ExpenseStatus;
 import com.example.demo.model.Expenses;
 import com.example.demo.model.Users;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -39,4 +41,5 @@ public interface ExpenseRepository extends JpaRepository<Expenses, Long>{
             double amount,
             LocalDate expenseDate,
             Users user);
+	public List<Expenses> findByApprover_IdAndStatus(Long id, ExpenseStatus submitted);
 }

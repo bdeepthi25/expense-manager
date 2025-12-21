@@ -1,8 +1,14 @@
 package com.example.demo.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
+import com.example.demo.enums.ExpenseStatus;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,8 +24,13 @@ public class Expenses {
 	private Long expenseId;
 	private String expenseType;
 	private double amount;
-	private LocalDate expenseDate;
-//	private Long userId;
+	private LocalDate expenseDate;  // Date of the actual expense
+	private LocalDateTime submittedDate;  // Date when the expense was submitted
+	private LocalDateTime approvedDate; // Date when the expense was approved/rejected
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private ExpenseStatus  status ;
+	//	private Long userId;
 	
 	
 	@ManyToOne(fetch = FetchType.LAZY) 
@@ -27,8 +38,56 @@ public class Expenses {
 	private Users users;
 //		→ This means the column created is user_id, not the full Users object
 	
+	@ManyToOne
+	@JoinColumn(name = "approver_id")
+	private Users approver;
 	
+	@ManyToOne
+	@JoinColumn(name = "approved_by")
+	private Users approvedBy;
 	
+	public Users getApprovedBy() {
+		return approvedBy;
+	}
+
+	public void setApprovedBy(Users approvedBy) {
+		this.approvedBy = approvedBy;
+	}
+
+	public LocalDateTime getSubmittedDate() {
+		return submittedDate;
+	}
+
+	public void setSubmittedDate(LocalDateTime submittedDate) {
+		this.submittedDate = submittedDate;
+	}
+
+	public LocalDateTime getApprovedDate() {
+		return approvedDate;
+	}
+
+	public void setApprovedDate(LocalDateTime approvedDate) {
+		this.approvedDate = approvedDate;
+	}
+
+
+
+	public ExpenseStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ExpenseStatus status) {
+		this.status = status;
+	}
+
+	public Users getApprover() {
+		return approver;
+	}
+
+	public void setApprover(Users approver) {
+		this.approver = approver;
+	}
+
 	public Expenses(Long expenseId, String expenseType, double amount, LocalDate expenseDate, Users users) {
 		super();
 		this.expenseId = expenseId;

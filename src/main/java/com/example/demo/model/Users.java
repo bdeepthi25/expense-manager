@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 public class Users {
@@ -14,6 +16,9 @@ public class Users {
 	private String username;
 	private String email;
 	private String password;
+	@ManyToOne
+	@JoinColumn(name = "manager_id")
+	private Users manager;   // 🔹 Self-referencing manager
 	
 	public Long getId() {
 		return userId;
@@ -38,5 +43,11 @@ public class Users {
 	}
 	public void setPassword(String password) {
 		this.password = password;
+	}
+	public Users getManager() {
+		return manager;
+	}
+	public void setManager(Users manager) {
+		this.manager = manager;
 	}
 }
