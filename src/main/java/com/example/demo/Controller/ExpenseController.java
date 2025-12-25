@@ -1,5 +1,6 @@
 package com.example.demo.Controller;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -18,11 +19,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.ExpenseRejectionDTO;
 import com.example.demo.dto.ExpenseRequestDTO;
 import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.UpdateExpenseRequestDTO;
+import com.example.demo.model.ExpenseReceipt;
 import com.example.demo.model.Users;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.ExpenseService;
@@ -42,12 +45,20 @@ public class ExpenseController {
         this.userRepository = userRepository;
     }
 	
+    @PostMapping("/save-close")
+    public ResponseEntity<?> saveAndCloseExpense( @Valid @RequestBody ExpenseRequestDTO expDto,
+    											@AuthenticationPrincipal UserDetails userDetails)
+    {
+    	return ResponseEntity.ok( expService.saveAndCloseExpense(expDto, userDetails) );
+    }
+     
     @PostMapping
-    public ResponseEntity<?> createExpense(
-            @Valid @RequestBody ExpenseRequestDTO expDto) {
+    public ResponseEntity<?> submitExpense(
+    		@PathVariable Long expenseId,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
         return new ResponseEntity<>(
-                expService.createExpense(expDto),
+                expService.submitExpense(expenseId, userDetails),
                 HttpStatus.CREATED
         );
     }
@@ -142,6 +153,17 @@ public class ExpenseController {
 	public ResponseEntity<?> getExpenseHistory(@PathVariable Long expenseId)
 	{
 		return ResponseEntity.ok(expService.getExpenseHistory(expenseId));
+	}
+	
+	@PostMapping("/{expenseId}/upload-receipts")
+	public ResponseEntity<?> uploadReceipts(
+				@PathVariable Long expenseId,
+				@RequestParam("file") MultipartFile file,
+				@AuthenticationPrincipal UserDetails userDetails
+			) throws IOException
+	{
+		ExpenseReceipt receipt = expService.uploadReceipt(file, expenseId, userDetails);
+		return ResponseEntity.ok(receipt);
 	}
 	
 }

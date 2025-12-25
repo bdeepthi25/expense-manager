@@ -1,12 +1,19 @@
 package com.example.demo.service;
 
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
+
 import org.springframework.data.domain.Pageable;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -14,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.demo.dto.ExpenseHistoryDTO;
 import com.example.demo.dto.ExpenseRejectionDTO;
@@ -22,9 +30,11 @@ import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.UpdateExpenseRequestDTO;
 import com.example.demo.enums.ExpenseStatus;
 import com.example.demo.model.ExpenseHistory;
+import com.example.demo.model.ExpenseReceipt;
 import com.example.demo.model.Expenses;
 import com.example.demo.model.Users;
 import com.example.demo.repository.ExpenseHistoryRepository;
+import com.example.demo.repository.ExpenseReceiptRepository;
 import com.example.demo.repository.ExpenseRepository;
 import com.example.demo.repository.UserRepository;
 
@@ -52,59 +62,71 @@ public class ExpenseService {
 	
 	@Autowired
 	private ExpenseHistoryRepository expHistoryRepo;
+	
+	@Autowired
+	private ExpenseReceiptRepository expReceiptRepo;
+	
 	public ExpenseService(ExpenseRepository expenseRepo) {
 		this.expenseRepo = expenseRepo;
 	}
 	
-	public ExpenseResponseDTO createExpense(ExpenseRequestDTO expenseDto)
+	private ExpenseResponseDTO mapToResponse(Expenses expense) {
+	    return new ExpenseResponseDTO(
+	            expense.getExpenseId(),
+	            expense.getExpenseType(),
+	            expense.getAmount(),
+	            expense.getExpenseDate(),
+	            expense.getSubmittedDate(),
+	            expense.getStatus(),
+	            expense.getApprover() != null ? expense.getApprover().getEmail() : null,
+	            expense.getApprovedDate()
+	    );
+	}
+	public ExpenseResponseDTO submitExpense(Long expenseId,
+											UserDetails userDetails)
 	{
 
 		 // 1️⃣ Get logged-in user email from JWT
-	    String email = SecurityContextHolder.getContext()
-	            .getAuthentication()
-	            .getName();
+	    Users user = userRepo.findByEmail(userDetails.getUsername())
+	            .orElseThrow(() -> new UserNotFoundException("User not found"));
 		
-		Users user = userRepo.findByEmail(email)
-				.orElseThrow( () -> new UserNotFoundException( "User not found"));
-		
-		
-		boolean exists = expenseRepo.existsByExpenseTypeAndAmountAndExpenseDateAndUsers(
-				expenseDto.getExpenseType(), 
-				expenseDto.getAmount(), 
-				expenseDto.getExpenseDate(), 
-				user);
-		if(exists)
-		{
-			throw new DuplicateExpenseException("Same Expense already exists");
-		}
-		Expenses newExpense = new Expenses();
+	    Expenses expense = expenseRepo.findById(expenseId)
+				.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
+
+	
 //		, expenseDto.getExpenseType(), expenseDto.getAmount(), expenseDto.getExpenseDate(), userRepo.findById(expenseDto.getUserId()) );
-		newExpense.setExpenseType(expenseDto.getExpenseType());
-		newExpense.setAmount(expenseDto.getAmount());
-		newExpense.setExpenseDate(expenseDto.getExpenseDate());
-		newExpense.setSubmittedDate(LocalDateTime.now());
-		newExpense.setStatus(ExpenseStatus.SUBMITTED);
-		newExpense.setApprover(user.getManager());
-		newExpense.setUsers(user);
+		if( user.getId().equals( expense.getApprover().getId()) )
+		{
+			throw new UnauthorizedExpenseApprovalException ("You can't approve this expense as you are not manager of this expense's owner");
+		}
+		if( expense.getStatus() != ExpenseStatus.SAVEANDCLOSE)
+		{
+			throw new IllegalStateException("Only DRAFT expenses can be submitted");
+		}
 		
-		expenseRepo.save( newExpense);
+
+	    // Check if receipts exist
+	    List<ExpenseReceipt> receipts = expReceiptRepo.findByExpense_ExpenseId(expenseId);
+	    if (receipts.isEmpty()) {
+	        throw new RuntimeException("Cannot submit expense without at least one receipt.");
+	    }
+	
+		 expense.setSubmittedDate(LocalDateTime.now());
+		 expense.setStatus(ExpenseStatus.SUBMITTED);
+		 expense.setApprover(user.getManager());
+		 expense.setUsers(user);
+		
+		 expenseRepo.save(expense);
 		
 		ExpenseHistory history = new ExpenseHistory();
-		history.setExpense(newExpense);
+		history.setExpense(expense);
 		history.setActionBy(user);
 		history.setAction(ExpenseStatus.SUBMITTED);
 		history.setActionDate(LocalDateTime.now());
 		expHistoryRepo.save(history);
 
 		
-		return new ExpenseResponseDTO(newExpense.getExpenseId(),
-				newExpense.getExpenseType(), 
-				newExpense.getAmount(), 
-				newExpense.getExpenseDate(),
-				newExpense.getSubmittedDate(),
-				newExpense.getStatus(),
-				newExpense.getApprover().getEmail(), 
-				newExpense.getApprovedDate());
+		return mapToResponse(expense);
 		
 	}
 
@@ -399,4 +421,78 @@ public class ExpenseService {
 													))
 				.toList();
 	}
+
+	public ExpenseResponseDTO saveAndCloseExpense(@Valid ExpenseRequestDTO expDto, UserDetails userDetails) {
+		
+		Users user = userRepo.findByEmail(userDetails.getUsername())
+						.orElseThrow(()-> new UserNotFoundException("User not found"));
+		
+		boolean exists = expenseRepo.existsByExpenseTypeAndAmountAndExpenseDateAndUsers(
+				expDto.getExpenseType(), 
+				expDto.getAmount(), 
+				expDto.getExpenseDate(), 
+				user);
+		if(exists)
+		{
+			throw new DuplicateExpenseException("Same Expense already exists");
+		}
+		  Expenses expense = new Expenses();
+		    expense.setExpenseType(expDto.getExpenseType());
+		    expense.setAmount(expDto.getAmount());
+		    expense.setExpenseDate(expDto.getExpenseDate());
+		    expense.setUsers(user);
+		    expense.setStatus(ExpenseStatus.SAVEANDCLOSE);
+		    Expenses saved = expenseRepo.save(expense);
+		    return mapToResponse(saved);
+	
+	}
+	
+	@Value("${app.receipts.dir}")
+	String appReceiptsDir;
+	
+	public  ExpenseReceipt uploadReceipt(MultipartFile file, Long expenseId, UserDetails userDetails) throws IOException {
+		
+		Expenses expense = expenseRepo.findById(expenseId)
+				.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
+		 Users user = userRepo.findByEmail(userDetails.getUsername())
+		            .orElseThrow(() -> new RuntimeException("User not found"));
+		
+		 // 1️⃣ Generate file name and path
+		String originalFileName = file.getOriginalFilename();
+		String folder = appReceiptsDir + "/" + user.getId() + "/" + expense.getExpenseId();
+		Files.createDirectories(Paths.get(folder));
+		String filePath = folder + "/" + UUID.randomUUID() +"_" +originalFileName;
+		
+	    // 2️⃣ Save file to filesystem
+		file.transferTo(new File(filePath));
+		
+		// 3️⃣ Save metadata in DB
+	    ExpenseReceipt receipt = new ExpenseReceipt();
+	    receipt.setFileName(originalFileName);
+	    receipt.setFilePath(filePath);
+	    receipt.setExpense(expense);
+	    receipt.setUploadedBy(user);
+	    receipt.setUploadedAt(LocalDateTime.now());
+		return  expReceiptRepo.save(receipt);
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 }
