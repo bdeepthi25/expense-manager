@@ -30,9 +30,7 @@ public class Expenses {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private ExpenseStatus  status ;
-	//	private Long userId;
-	
-	
+
 	@ManyToOne(fetch = FetchType.LAZY) 
 	@JoinColumn(name = "userId")
 	private Users users;
@@ -46,6 +44,18 @@ public class Expenses {
 	@JoinColumn(name = "approved_by")
 	private Users approvedBy;
 	
+	@Column(length = 500)
+	private String rejectionReason;
+
+	
+	public String getRejectionReason() {
+		return rejectionReason;
+	}
+
+	public void setRejectionReason(String rejectionReason) {
+		this.rejectionReason = rejectionReason;
+	}
+
 	public Users getApprovedBy() {
 		return approvedBy;
 	}

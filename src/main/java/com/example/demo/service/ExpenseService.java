@@ -12,9 +12,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-
+import com.example.demo.dto.ExpenseRejectionDTO;
 import com.example.demo.dto.ExpenseRequestDTO;
 import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.UpdateExpenseRequestDTO;
@@ -249,13 +250,10 @@ public class ExpenseService {
 		
 	}
 
-	public void rejectExpense(Long expenseId) 
+	public void rejectExpense(Long expenseId, ExpenseRejectionDTO expRejectDto, UserDetails userDetails) 
 	{
-	    String email = SecurityContextHolder
-						.getContext()
-						.getAuthentication()
-						.getName();
-		Users loggedInUser = userRepo.findByEmail(email)
+
+		Users loggedInUser = userRepo.findByUsername(userDetails.getUsername())
 			.orElseThrow( () -> new UserNotFoundException("User not found"));
 		Expenses expense = expenseRepo.findById(expenseId)
 						.orElseThrow( ()-> new ExpenseNotFoundException("Expense not found") ) ;
@@ -264,12 +262,14 @@ public class ExpenseService {
 		{
 			throw new RuntimeException("You can't approve this expense as you are not manager of this expense's owner");
 		}
-		if( expense.getStatus() != ExpenseStatus.SUBMITTED )
+		if( expense.getStatus() != ExpenseStatus.SUBMITTED &&
+				expense.getStatus() != ExpenseStatus.RESUBMITTED)
 		{
 			throw new RuntimeException("This expense is already processed");
 		}
 		
 		expense.setStatus(ExpenseStatus.REJECTED);
+		expense.setRejectionReason(expRejectDto.getRejectionReason());
 		expense.setApprovedBy(loggedInUser);
 		expense.setApprovedDate(LocalDateTime.now());
 		
@@ -277,23 +277,27 @@ public class ExpenseService {
 		
 	}
 
-	public List<ExpenseResponseDTO> getDocumentsForMyReview() {
+	public Page<ExpenseResponseDTO> getDocumentsForMyReview(int page, int size) {
 		String email = SecurityContextHolder.getContext()
 						.getAuthentication().getName();
 		Users loggedInUser = userRepo.findByEmail(email)
 								.orElseThrow(() -> new UserNotFoundException("User not found"));
-		List<Expenses> expenses = expenseRepo
-							.findByApprover_IdAndStatus(
+		
+		Pageable pageable = PageRequest.of(page, size,
+							Sort.by("submittedDate").descending()
+							);
+		
+		Page<Expenses> expensesPage = expenseRepo
+							.findByApprover_IdAndStatusIn(
 									loggedInUser.getId(),
-									ExpenseStatus.SUBMITTED);
+									List.of( ExpenseStatus.SUBMITTED,
+											ExpenseStatus.RESUBMITTED
+											),
+									pageable
+									);
 		
-		if(expenses.isEmpty())
-		{
-			 throw new RuntimeException("No documents pending for your review");
-		}
 		
-		return expenses.stream()
-						.map( e -> new ExpenseResponseDTO(
+		return expensesPage.map( e -> new ExpenseResponseDTO(
 								e.getExpenseId(), 
 								e.getExpenseType(),
 								e.getAmount(),
@@ -302,9 +306,40 @@ public class ExpenseService {
 								e.getStatus(),
 								e.getUsers().getEmail(), 
 								e.getApprovedDate()
-							))
-						.toList();
+							));
 		
+	}
+
+	public void resubmitExpense(Long expenseId, ExpenseRequestDTO expRequestDto, UserDetails userDetails) {
+		Users loggedInUser = userRepo.findByUsername(userDetails.getUsername())
+				.orElseThrow();
+		
+		Expenses expense = expenseRepo.findById(expenseId)
+				.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
+		  // 1. Ownership check
+		if( !expense.getUsers().getId().equals(loggedInUser.getId()))
+		{
+			 throw new UnauthorizedAccessException("You can resubmit only your expenses");
+		}
+		  // 2. Status check
+		if(expense.getStatus() != ExpenseStatus.REJECTED)
+		{
+			throw new IllegalStateException("Only rejected expenses can be resubmitted");
+		}
+		   // 3. Update editable fields
+		expense.setExpenseType(expRequestDto.getExpenseType());
+		expense.setAmount(expRequestDto.getAmount());
+		expense.setExpenseDate(expRequestDto.getExpenseDate());
+		// 4. Resubmission changes
+		
+		expense.setStatus(ExpenseStatus.RESUBMITTED);
+		expense.setSubmittedDate(LocalDateTime.now());
+		expense.setRejectionReason(null);
+		expense.setApprover(null);
+		expense.setApprovedBy(null);
+		
+		expenseRepo.save(expense);
+	
 	}
 	
 	
