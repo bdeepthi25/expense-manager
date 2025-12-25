@@ -15,15 +15,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import com.example.demo.dto.ExpenseHistoryDTO;
 import com.example.demo.dto.ExpenseRejectionDTO;
 import com.example.demo.dto.ExpenseRequestDTO;
 import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.UpdateExpenseRequestDTO;
 import com.example.demo.enums.ExpenseStatus;
+import com.example.demo.model.ExpenseHistory;
 import com.example.demo.model.Expenses;
 import com.example.demo.model.Users;
+import com.example.demo.repository.ExpenseHistoryRepository;
 import com.example.demo.repository.ExpenseRepository;
 import com.example.demo.repository.UserRepository;
+
 
 import jakarta.validation.Valid;
 
@@ -44,6 +48,10 @@ public class ExpenseService {
 	@Autowired
 	private  UserRepository userRepo;
 	
+	
+	
+	@Autowired
+	private ExpenseHistoryRepository expHistoryRepo;
 	public ExpenseService(ExpenseRepository expenseRepo) {
 		this.expenseRepo = expenseRepo;
 	}
@@ -80,6 +88,15 @@ public class ExpenseService {
 		newExpense.setUsers(user);
 		
 		expenseRepo.save( newExpense);
+		
+		ExpenseHistory history = new ExpenseHistory();
+		history.setExpense(newExpense);
+		history.setActionBy(user);
+		history.setAction(ExpenseStatus.SUBMITTED);
+		history.setActionDate(LocalDateTime.now());
+		expHistoryRepo.save(history);
+
+		
 		return new ExpenseResponseDTO(newExpense.getExpenseId(),
 				newExpense.getExpenseType(), 
 				newExpense.getAmount(), 
@@ -246,6 +263,15 @@ public class ExpenseService {
 		expense.setApprovedBy(loggedInUser);
 		expense.setApprovedDate(LocalDateTime.now());
 		
+		ExpenseHistory history = new ExpenseHistory();
+		history.setExpense(expense);
+		history.setActionBy(loggedInUser);
+		history.setAction(ExpenseStatus.APPROVED); // APPROVED or REJECTED
+		history.setActionDate(LocalDateTime.now());
+		
+		expHistoryRepo.save(history);
+
+		
 		 expenseRepo.save(expense);
 		
 	}
@@ -272,6 +298,15 @@ public class ExpenseService {
 		expense.setRejectionReason(expRejectDto.getRejectionReason());
 		expense.setApprovedBy(loggedInUser);
 		expense.setApprovedDate(LocalDateTime.now());
+		
+		ExpenseHistory history = new ExpenseHistory();
+		history.setExpense(expense);
+		history.setActionBy(loggedInUser);
+		history.setAction(ExpenseStatus.REJECTED); // APPROVED or REJECTED
+		history.setActionDate(LocalDateTime.now());
+		history.setComment(expRejectDto.getRejectionReason());
+		expHistoryRepo.save(history);
+
 		
 		 expenseRepo.save(expense);
 		
@@ -338,9 +373,30 @@ public class ExpenseService {
 		expense.setApprover(null);
 		expense.setApprovedBy(null);
 		
+		ExpenseHistory history = new ExpenseHistory();
+		history.setExpense(expense);
+		history.setActionBy(loggedInUser);
+		history.setAction(ExpenseStatus.RESUBMITTED);
+		history.setActionDate(LocalDateTime.now());
+		expHistoryRepo.save(history);
+
 		expenseRepo.save(expense);
 	
 	}
 	
-	
+	public List<ExpenseHistoryDTO> getExpenseHistory(Long expenseId)
+	{
+		Expenses expense = expenseRepo.findById(expenseId)
+				.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
+		List<ExpenseHistory> historyList = expHistoryRepo
+									.findByExpenseOrderByActionDateAsc(expense);
+		
+		return historyList.stream()
+				.map( h -> new ExpenseHistoryDTO(h.getActionDate(),
+													h.getActionBy().getEmail(),
+													h.getAction(), 
+													h.getComment()
+													))
+				.toList();
+	}
 }

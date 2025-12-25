@@ -137,4 +137,11 @@ public class ExpenseController {
 	{
 		return ResponseEntity.ok(expService.getDocumentsForMyReview(page, size));
 	}
+	
+	@GetMapping("/{expenseId}/get-history")
+	public ResponseEntity<?> getExpenseHistory(@PathVariable Long expenseId)
+	{
+		return ResponseEntity.ok(expService.getExpenseHistory(expenseId));
+	}
+	
 }
