@@ -28,7 +28,7 @@ public class Expenses {
 	private LocalDateTime submittedDate;  // Date when the expense was submitted
 	private LocalDateTime approvedDate; // Date when the expense was approved/rejected
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
+	@Column(name="status",nullable = false)
 	private ExpenseStatus  status ;
 
 	@ManyToOne(fetch = FetchType.LAZY) 

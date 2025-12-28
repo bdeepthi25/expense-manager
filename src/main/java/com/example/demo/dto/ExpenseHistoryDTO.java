@@ -17,6 +17,22 @@ public class ExpenseHistoryDTO {
         this.action = action;
         this.comment = comment;
     }
+
+	public LocalDateTime getDate() {
+		return date;
+	}
+
+	public String getPerformedBy() {
+		return performedBy;
+	}
+
+	public ExpenseStatus getAction() {
+		return action;
+	}
+
+	public String getComment() {
+		return comment;
+	}
     
     
 }

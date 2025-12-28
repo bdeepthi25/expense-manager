@@ -3,8 +3,11 @@ package com.example.demo.service;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,6 +49,8 @@ import com.example.demo.exception.ExpenseAlreadyProcessedException;
 import com.example.demo.exception.ExpenseNotFoundException;
 import com.example.demo.exception.InvalidAmountException;
 import com.example.demo.exception.InvalidDateException;
+import com.example.demo.exception.ReceiptRequiredException;
+import com.example.demo.exception.RejectionReasonRequiredException;
 import com.example.demo.exception.UnauthorizedAccessException;
 import com.example.demo.exception.UnauthorizedExpenseApprovalException;
 import com.example.demo.exception.UserNotFoundException;
@@ -95,10 +100,10 @@ public class ExpenseService {
 
 	
 //		, expenseDto.getExpenseType(), expenseDto.getAmount(), expenseDto.getExpenseDate(), userRepo.findById(expenseDto.getUserId()) );
-		if( user.getId().equals( expense.getApprover().getId()) )
-		{
-			throw new UnauthorizedExpenseApprovalException ("You can't approve this expense as you are not manager of this expense's owner");
-		}
+//		if( user.getId().equals( expense.getApprover().getId()) )
+//		{
+//			throw new UnauthorizedExpenseApprovalException ("You can't approve this expense as you are not manager of this expense's owner");
+//		}
 		if( expense.getStatus() != ExpenseStatus.SAVEANDCLOSE)
 		{
 			throw new IllegalStateException("Only DRAFT expenses can be submitted");
@@ -108,7 +113,7 @@ public class ExpenseService {
 	    // Check if receipts exist
 	    List<ExpenseReceipt> receipts = expReceiptRepo.findByExpense_ExpenseId(expenseId);
 	    if (receipts.isEmpty()) {
-	        throw new RuntimeException("Cannot submit expense without at least one receipt.");
+	        throw new ReceiptRequiredException("Cannot submit expense without at least one receipt.");
 	    }
 	
 		 expense.setSubmittedDate(LocalDateTime.now());
@@ -272,7 +277,7 @@ public class ExpenseService {
 		Expenses expense = expenseRepo.findById(expenseId)
 							.orElseThrow( ()-> new ExpenseNotFoundException("Expense not found") ) ;
 		
-		if( loggedInUser.getId().equals( expense.getApprover().getId()) )
+		if( !loggedInUser.getId().equals( expense.getApprover().getId()) )
 		{
 			throw new UnauthorizedExpenseApprovalException ("You can't approve this expense as you are not manager of this expense's owner");
 		}
@@ -300,13 +305,18 @@ public class ExpenseService {
 
 	public void rejectExpense(Long expenseId, ExpenseRejectionDTO expRejectDto, UserDetails userDetails) 
 	{
-
-		Users loggedInUser = userRepo.findByUsername(userDetails.getUsername())
+		String email = SecurityContextHolder
+				.getContext()
+				.getAuthentication()
+						.getName();
+		Users loggedInUser = userRepo.findByEmail(email)
 			.orElseThrow( () -> new UserNotFoundException("User not found"));
 		Expenses expense = expenseRepo.findById(expenseId)
 						.orElseThrow( ()-> new ExpenseNotFoundException("Expense not found") ) ;
-		
-		if( loggedInUser.getId().equals( expense.getApprover().getId()))
+		 if (expRejectDto.getRejectionReason() == null || expRejectDto.getRejectionReason().isEmpty()) {
+		        throw new RejectionReasonRequiredException("Rejection reason is required to reject an expense");
+		    }
+		if( !loggedInUser.getId().equals( expense.getApprover().getId()))
 		{
 			throw new RuntimeException("You can't approve this expense as you are not manager of this expense's owner");
 		}
@@ -315,6 +325,7 @@ public class ExpenseService {
 		{
 			throw new RuntimeException("This expense is already processed");
 		}
+		
 		
 		expense.setStatus(ExpenseStatus.REJECTED);
 		expense.setRejectionReason(expRejectDto.getRejectionReason());
@@ -361,16 +372,18 @@ public class ExpenseService {
 								e.getExpenseDate(),
 								e.getSubmittedDate(),
 								e.getStatus(),
-								e.getUsers().getEmail(), 
+								e.getApprover().getEmail(), 
 								e.getApprovedDate()
 							));
 		
 	}
 
 	public void resubmitExpense(Long expenseId, ExpenseRequestDTO expRequestDto, UserDetails userDetails) {
-		Users loggedInUser = userRepo.findByUsername(userDetails.getUsername())
-				.orElseThrow();
-		
+		String email = SecurityContextHolder.getContext()
+				.getAuthentication().getName();
+		Users loggedInUser = userRepo.findByEmail(email)
+								.orElseThrow(() -> new UserNotFoundException("User not found"));
+
 		Expenses expense = expenseRepo.findById(expenseId)
 				.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
 		  // 1. Ownership check
@@ -457,19 +470,29 @@ public class ExpenseService {
 		 Users user = userRepo.findByEmail(userDetails.getUsername())
 		            .orElseThrow(() -> new RuntimeException("User not found"));
 		
+		 // 1️⃣ Check ownership: the logged-in user must be the one who created the expense
+		    if (!expense.getUsers().getId().equals(user.getId())) {
+		        throw new UnauthorizedAccessException("You are not authorized to upload receipt for this expense");
+		    }
+		 
 		 // 1️⃣ Generate file name and path
-		String originalFileName = file.getOriginalFilename();
-		String folder = appReceiptsDir + "/" + user.getId() + "/" + expense.getExpenseId();
-		Files.createDirectories(Paths.get(folder));
-		String filePath = folder + "/" + UUID.randomUUID() +"_" +originalFileName;
 		
-	    // 2️⃣ Save file to filesystem
-		file.transferTo(new File(filePath));
-		
+		 Path folderPath = Paths.get(appReceiptsDir, String.valueOf(user.getId()), String.valueOf(expense.getExpenseId()));
+		    Files.createDirectories(folderPath);
+		 
+		 String originalFileName = file.getOriginalFilename();
+		    String uniqueFileName = UUID.randomUUID() + "_" + originalFileName;
+		    Path filePath = folderPath.resolve(uniqueFileName);
+	    
+		    // 3️⃣ Save file using Files.copy
+		    try (InputStream is = file.getInputStream()) {
+		        Files.copy(is, filePath, StandardCopyOption.REPLACE_EXISTING);
+		    }
+
 		// 3️⃣ Save metadata in DB
 	    ExpenseReceipt receipt = new ExpenseReceipt();
 	    receipt.setFileName(originalFileName);
-	    receipt.setFilePath(filePath);
+	    receipt.setFilePath(filePath.toString());
 	    receipt.setExpense(expense);
 	    receipt.setUploadedBy(user);
 	    receipt.setUploadedAt(LocalDateTime.now());

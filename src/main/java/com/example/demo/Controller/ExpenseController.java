@@ -52,7 +52,7 @@ public class ExpenseController {
     	return ResponseEntity.ok( expService.saveAndCloseExpense(expDto, userDetails) );
     }
      
-    @PostMapping
+    @PostMapping("/{expenseId}/submit")
     public ResponseEntity<?> submitExpense(
     		@PathVariable Long expenseId,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -142,7 +142,7 @@ public class ExpenseController {
 		return ResponseEntity.ok("Expense Resubmitted successfully");
 	}
 	
-	@GetMapping("\review")
+	@GetMapping("/review")
 	public ResponseEntity<?> getDocumentsForMyReview(@RequestParam(defaultValue = "0") int page,
 													@RequestParam(defaultValue = "5") int size	)
 	{
