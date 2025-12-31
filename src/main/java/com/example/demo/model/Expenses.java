@@ -3,6 +3,7 @@ package com.example.demo.model;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.example.demo.enums.ExpenseActivity;
 import com.example.demo.enums.ExpenseStatus;
 
 import jakarta.persistence.Column;
@@ -22,6 +23,7 @@ public class Expenses {
 	@Id
 	@GeneratedValue(strategy= GenerationType.IDENTITY)
 	private Long expenseId;
+	
 	private String expenseType;
 	private double amount;
 	private LocalDate expenseDate;  // Date of the actual expense
@@ -30,8 +32,9 @@ public class Expenses {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private ExpenseStatus  status ;
-	//	private Long userId;
 	
+	@Enumerated(EnumType.STRING)
+	private ExpenseActivity currentActivity;
 	
 	@ManyToOne(fetch = FetchType.LAZY) 
 	@JoinColumn(name = "userId")
