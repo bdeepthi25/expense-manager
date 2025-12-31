@@ -68,4 +68,17 @@ public class GlobalExceptionHandler {
 	{
 		return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ex.getMessage());
 	}
+	
+	@ExceptionHandler(ReceiptRequiredException.class)
+	public ResponseEntity<?> handleReceiptREquiredException(ReceiptRequiredException ex)
+	{
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+	}
+	
+	@ExceptionHandler(RejectionReasonRequiredException.class)
+	public ResponseEntity<?> RejectionReasonRequiredException(RejectionReasonRequiredException ex)
+	{
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+	}
+
 }

@@ -30,12 +30,15 @@ public class Expenses {
 	private LocalDateTime submittedDate;  // Date when the expense was submitted
 	private LocalDateTime approvedDate; // Date when the expense was approved/rejected
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
+	@Column(name="status",nullable = false)
 	private ExpenseStatus  status ;
+
 	
+
 	@Enumerated(EnumType.STRING)
 	private ExpenseActivity currentActivity;
 	
+
 	@ManyToOne(fetch = FetchType.LAZY) 
 	@JoinColumn(name = "userId")
 	private Users users;
@@ -49,6 +52,25 @@ public class Expenses {
 	@JoinColumn(name = "approved_by")
 	private Users approvedBy;
 	
+	@Column(length = 500)
+	private String rejectionReason;
+
+	public ExpenseActivity getCurrentActivity() {
+		return currentActivity;
+	}
+
+	public void setCurrentActivity(ExpenseActivity currentActivity) {
+		this.currentActivity = currentActivity;
+	}
+	
+	public String getRejectionReason() {
+		return rejectionReason;
+	}
+
+	public void setRejectionReason(String rejectionReason) {
+		this.rejectionReason = rejectionReason;
+	}
+
 	public Users getApprovedBy() {
 		return approvedBy;
 	}

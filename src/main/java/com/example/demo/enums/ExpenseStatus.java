@@ -1,9 +1,14 @@
 package com.example.demo.enums;
 
 public enum ExpenseStatus {
+
+
+
+	SAVEANDCLOSE,
 	
-	DRAFT,
 	PENDING,
+
     APPROVED,
-    REJECTED
+    REJECTED,
+    RESUBMITTED
 }
