@@ -2,6 +2,7 @@ package com.example.demo.model;
 
 import java.time.LocalDateTime;
 
+import com.example.demo.enums.ExpenseActivity;
 import com.example.demo.enums.ExpenseStatus;
 
 import jakarta.persistence.Entity;
@@ -28,6 +29,9 @@ public class ExpenseHistory {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id")
 	private Users actionBy;
+	
+    @Enumerated(EnumType.STRING)
+    private ExpenseActivity activity;
 	
 	@Enumerated(EnumType.STRING)
 	private ExpenseStatus action;

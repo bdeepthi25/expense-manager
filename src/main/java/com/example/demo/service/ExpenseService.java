@@ -363,7 +363,7 @@ public class ExpenseService {
 											),
 									pageable
 									);
-		
+		1
 		
 		return expensesPage.map( e -> new ExpenseResponseDTO(
 								e.getExpenseId(), 

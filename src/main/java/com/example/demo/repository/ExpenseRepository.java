@@ -42,4 +42,9 @@ public interface ExpenseRepository extends JpaRepository<Expenses, Long>{
             LocalDate expenseDate,
             Users user);
 	public Page<Expenses> findByApprover_IdAndStatusIn(Long id, List<ExpenseStatus> statuses, Pageable pageable);
+
+	
+
+
+
 }
