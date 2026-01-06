@@ -28,16 +28,22 @@ public class Expenses {
 	private double amount;
 	private LocalDate expenseDate;  // Date of the actual expense
 	private LocalDateTime submittedDate;  // Date when the expense was submitted
+	
+//	@ManyToOne  -> store charge code string directly
+	@JoinColumn(name = "charge_code",  referencedColumnName = "charge_code",nullable = false)
+	private String chargeCode;
+
 	private LocalDateTime approvedDate; // Date when the expense was approved/rejected
 	@Enumerated(EnumType.STRING)
 	@Column(name="status",nullable = false)
 	private ExpenseStatus  status ;
 
-	
-
 	@Enumerated(EnumType.STRING)
-	private ExpenseActivity currentActivity;
-	
+    @Column(nullable = false)
+    private ExpenseActivity currentActivity;
+
+    @Enumerated(EnumType.STRING)
+    private ExpenseActivity previousActivity;
 
 	@ManyToOne(fetch = FetchType.LAZY) 
 	@JoinColumn(name = "userId")
@@ -52,9 +58,40 @@ public class Expenses {
 	@JoinColumn(name = "approved_by")
 	private Users approvedBy;
 	
+	
+
 	@Column(length = 500)
 	private String rejectionReason;
+	
+	@JoinColumn(name = "locked_at")
+	private LocalDateTime lockedAt;
+	
+	@ManyToOne
+	@JoinColumn(name = "locked_by")
+	private Users lockedBy;
+	
+	
+	public String getChargeCode() {
+		return chargeCode;
+	}
 
+	public void setChargeCode(String chargeCode) {
+		this.chargeCode = chargeCode;
+	}
+
+	public LocalDateTime getLockedAt() {
+		return lockedAt;
+	}
+
+	public void setLockedAt(LocalDateTime lockedAt) {
+		this.lockedAt = lockedAt;
+	}
+
+	public void setLockedBy(Users lockedBy) {
+		this.lockedBy = lockedBy;
+	}
+
+	
 	public ExpenseActivity getCurrentActivity() {
 		return currentActivity;
 	}
@@ -95,7 +132,13 @@ public class Expenses {
 		this.approvedDate = approvedDate;
 	}
 
+	public ExpenseActivity getPreviousActivity() {
+		return previousActivity;
+	}
 
+	public void setPreviousActivity(ExpenseActivity previousActivity) {
+		this.previousActivity = previousActivity;
+	}
 
 	public ExpenseStatus getStatus() {
 		return status;
@@ -123,7 +166,7 @@ public class Expenses {
 	}
 
 	public Expenses() {
-		// TODO Auto-generated constructor stub
+		
 	}
 
 	public Long getExpenseId() {
@@ -166,5 +209,10 @@ public class Expenses {
 		this.users = users;
 	}
 
+	public ExpenseHistory getLockedBy() {
+		return null;
+	}
+
+	
 	
 }

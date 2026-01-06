@@ -81,4 +81,21 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
 	}
 
+	@ExceptionHandler(ExpenseAlreadyLockedException.class)
+	public ResponseEntity<?> ExpenseAlreadyLockedException(ExpenseAlreadyLockedException ex)
+	{
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+	}
+	
+	@ExceptionHandler(IllegalAuditActionException.class)
+	public ResponseEntity<?> IllegalAuditActionException(IllegalAuditActionException ex)
+	{
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+	}
+	
+	@ExceptionHandler(InvalidExpenseStateException.class)
+	public ResponseEntity<?> InvalidExpenseStateException(InvalidExpenseStateException ex)
+	{
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+	}
 }

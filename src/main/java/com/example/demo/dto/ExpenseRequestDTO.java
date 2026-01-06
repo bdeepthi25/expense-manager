@@ -17,8 +17,11 @@ public class ExpenseRequestDTO {
 	@NotNull(message = "Expense date is required")
 	@PastOrPresent(message = "Expense date cannot be in future")
 	private LocalDate expenseDate;
+	@NotNull(message = "Charge code is required")
+	private String chargeCode;
 	
-	
+
+
 	public ExpenseRequestDTO( String expenseType, double amount, LocalDate expenseDate) {
 		
 		this.expenseType = expenseType;
@@ -58,5 +61,11 @@ public class ExpenseRequestDTO {
 		this.expenseDate = expenseDate;
 	}
 	
-	
+	public String getChargeCode() {
+		return chargeCode;
+	}
+
+	public void setChargeCode(String chargeCode) {
+		this.chargeCode = chargeCode;
+	}
 }

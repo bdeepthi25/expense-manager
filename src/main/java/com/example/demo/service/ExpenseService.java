@@ -31,11 +31,15 @@ import com.example.demo.dto.ExpenseRejectionDTO;
 import com.example.demo.dto.ExpenseRequestDTO;
 import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.UpdateExpenseRequestDTO;
+import com.example.demo.enums.ExpenseActivity;
 import com.example.demo.enums.ExpenseStatus;
+import com.example.demo.model.ChargeCode;
 import com.example.demo.model.ExpenseHistory;
 import com.example.demo.model.ExpenseReceipt;
 import com.example.demo.model.Expenses;
 import com.example.demo.model.Users;
+import com.example.demo.repository.AuditorRepository;
+import com.example.demo.repository.ChargeCodeRepository;
 import com.example.demo.repository.ExpenseHistoryRepository;
 import com.example.demo.repository.ExpenseReceiptRepository;
 import com.example.demo.repository.ExpenseRepository;
@@ -62,8 +66,8 @@ public class ExpenseService {
 	private ExpenseRepository expenseRepo;
 	@Autowired
 	private  UserRepository userRepo;
-	
-	
+	@Autowired
+	private WorkflowService workflowService;
 	
 	@Autowired
 	private ExpenseHistoryRepository expHistoryRepo;
@@ -71,6 +75,10 @@ public class ExpenseService {
 	@Autowired
 	private ExpenseReceiptRepository expReceiptRepo;
 	
+	@Autowired
+	private ChargeCodeRepository chargeCodeRepo;
+	@Autowired
+	private AuditorRepository auditorRepo;
 	public ExpenseService(ExpenseRepository expenseRepo) {
 		this.expenseRepo = expenseRepo;
 	}
@@ -98,26 +106,20 @@ public class ExpenseService {
 	    Expenses expense = expenseRepo.findById(expenseId)
 				.orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
 
-	
-//		, expenseDto.getExpenseType(), expenseDto.getAmount(), expenseDto.getExpenseDate(), userRepo.findById(expenseDto.getUserId()) );
-//		if( user.getId().equals( expense.getApprover().getId()) )
-//		{
-//			throw new UnauthorizedExpenseApprovalException ("You can't approve this expense as you are not manager of this expense's owner");
-//		}
-		if( expense.getStatus() != ExpenseStatus.SAVEANDCLOSE)
+	    if( expense.getStatus() != ExpenseStatus.SAVEANDCLOSE)
 		{
 			throw new IllegalStateException("Only DRAFT expenses can be submitted");
 		}
 		
-
 	    // Check if receipts exist
 	    List<ExpenseReceipt> receipts = expReceiptRepo.findByExpense_ExpenseId(expenseId);
 	    if (receipts.isEmpty()) {
 	        throw new ReceiptRequiredException("Cannot submit expense without at least one receipt.");
 	    }
-	
+	     expense.setPreviousActivity(expense.getCurrentActivity());
+	     expense.setCurrentActivity(ExpenseActivity.ER_MANAGER_REVIEW);
 		 expense.setSubmittedDate(LocalDateTime.now());
-		 expense.setStatus(ExpenseStatus.SUBMITTED);
+		 expense.setStatus(ExpenseStatus.PENDING);
 		 expense.setApprover(user.getManager());
 		 expense.setUsers(user);
 		
@@ -126,8 +128,11 @@ public class ExpenseService {
 		ExpenseHistory history = new ExpenseHistory();
 		history.setExpense(expense);
 		history.setActionBy(user);
-		history.setAction(ExpenseStatus.SUBMITTED);
+		history.setReviewer(user.getManager());
+		history.setAction(ExpenseStatus.PENDING);
 		history.setActionDate(LocalDateTime.now());
+		history.setPreviousActivity(expense.getPreviousActivity());
+		history.setCurrentActivity(expense.getCurrentActivity());
 		expHistoryRepo.save(history);
 
 		
@@ -277,29 +282,26 @@ public class ExpenseService {
 		Expenses expense = expenseRepo.findById(expenseId)
 							.orElseThrow( ()-> new ExpenseNotFoundException("Expense not found") ) ;
 		
+		if (expense.getCurrentActivity() == ExpenseActivity.ER_AUDIT_REVIEW) {
+		    // ✅ Audit has NO approver_id
+		    expense.setApprover(loggedInUser);
+		} 
+		
+		
 		if( !loggedInUser.getId().equals( expense.getApprover().getId()) )
 		{
 			throw new UnauthorizedExpenseApprovalException ("You can't approve this expense as you are not manager of this expense's owner");
 		}
-		if( expense.getStatus() != ExpenseStatus.SUBMITTED)
+		if( expense.getStatus() != ExpenseStatus.PENDING &&
+				expense.getStatus() != ExpenseStatus.RESUBMITTED)
 		{
 			throw new ExpenseAlreadyProcessedException ("This expense is already processed");
 		}
-		
-		expense.setStatus(ExpenseStatus.APPROVED);
+		workflowService.proceed(expense, loggedInUser, ExpenseStatus.APPROVED);
 		expense.setApprovedBy(loggedInUser);
 		expense.setApprovedDate(LocalDateTime.now());
 		
-		ExpenseHistory history = new ExpenseHistory();
-		history.setExpense(expense);
-		history.setActionBy(loggedInUser);
-		history.setAction(ExpenseStatus.APPROVED); // APPROVED or REJECTED
-		history.setActionDate(LocalDateTime.now());
-		
-		expHistoryRepo.save(history);
-
-		
-		 expenseRepo.save(expense);
+		expenseRepo.save(expense);
 		
 	}
 
@@ -311,38 +313,32 @@ public class ExpenseService {
 						.getName();
 		Users loggedInUser = userRepo.findByEmail(email)
 			.orElseThrow( () -> new UserNotFoundException("User not found"));
+		
 		Expenses expense = expenseRepo.findById(expenseId)
 						.orElseThrow( ()-> new ExpenseNotFoundException("Expense not found") ) ;
 		 if (expRejectDto.getRejectionReason() == null || expRejectDto.getRejectionReason().isEmpty()) {
 		        throw new RejectionReasonRequiredException("Rejection reason is required to reject an expense");
 		    }
+		 if (expense.getCurrentActivity() == ExpenseActivity.ER_AUDIT_REVIEW) {
+			    // ✅ Audit has NO approver_id
+			    expense.setApprover(loggedInUser);
+			} 
 		if( !loggedInUser.getId().equals( expense.getApprover().getId()))
 		{
-			throw new RuntimeException("You can't approve this expense as you are not manager of this expense's owner");
+			throw new RuntimeException("You can't reject this expense as you are not manager of this expense's owner");
 		}
-		if( expense.getStatus() != ExpenseStatus.SUBMITTED &&
+		if( expense.getStatus() != ExpenseStatus.PENDING &&
 				expense.getStatus() != ExpenseStatus.RESUBMITTED)
 		{
 			throw new RuntimeException("This expense is already processed");
 		}
 		
-		
-		expense.setStatus(ExpenseStatus.REJECTED);
-		expense.setRejectionReason(expRejectDto.getRejectionReason());
+		workflowService.proceed(expense, loggedInUser, ExpenseStatus.REJECTED);
 		expense.setApprovedBy(loggedInUser);
+		expense.setRejectionReason(expRejectDto.getRejectionReason());
 		expense.setApprovedDate(LocalDateTime.now());
 		
-		ExpenseHistory history = new ExpenseHistory();
-		history.setExpense(expense);
-		history.setActionBy(loggedInUser);
-		history.setAction(ExpenseStatus.REJECTED); // APPROVED or REJECTED
-		history.setActionDate(LocalDateTime.now());
-		history.setComment(expRejectDto.getRejectionReason());
-		expHistoryRepo.save(history);
-
-		
 		 expenseRepo.save(expense);
-		
 	}
 
 	public Page<ExpenseResponseDTO> getDocumentsForMyReview(int page, int size) {
@@ -354,16 +350,31 @@ public class ExpenseService {
 		Pageable pageable = PageRequest.of(page, size,
 							Sort.by("submittedDate").descending()
 							);
+	    boolean isAuditor = auditorRepo
+	            .existsByUser_IdAndIsActiveTrue(loggedInUser.getId());
 		
-		Page<Expenses> expensesPage = expenseRepo
-							.findByApprover_IdAndStatusIn(
-									loggedInUser.getId(),
-									List.of( ExpenseStatus.SUBMITTED,
-											ExpenseStatus.RESUBMITTED
-											),
-									pageable
-									);
-		1
+	    Page<Expenses> expensesPage = null;
+	    if(isAuditor)
+	    {
+	    	 expensesPage = expenseRepo.findExpensesForAuditReview(
+	                 ExpenseActivity.ER_AUDIT_REVIEW,
+	                 loggedInUser.getId(),
+	                 pageable
+	         );
+	    }
+	    else
+	    {
+	    	  expensesPage = expenseRepo
+						.findByApprover_IdAndStatusIn(
+								loggedInUser.getId(),
+								List.of( ExpenseStatus.PENDING,
+										ExpenseStatus.RESUBMITTED
+										),
+								pageable
+								);
+	
+	    }
+	  
 		
 		return expensesPage.map( e -> new ExpenseResponseDTO(
 								e.getExpenseId(), 
@@ -372,7 +383,7 @@ public class ExpenseService {
 								e.getExpenseDate(),
 								e.getSubmittedDate(),
 								e.getStatus(),
-								e.getApprover().getEmail(), 
+								e.getApprover() != null ? e.getApprover().getEmail() : null, 
 								e.getApprovedDate()
 							));
 		
@@ -405,14 +416,18 @@ public class ExpenseService {
 		expense.setStatus(ExpenseStatus.RESUBMITTED);
 		expense.setSubmittedDate(LocalDateTime.now());
 		expense.setRejectionReason(null);
-		expense.setApprover(null);
+		expense.setApprover(loggedInUser.getManager());
 		expense.setApprovedBy(null);
-		
+		expense.setPreviousActivity(expense.getCurrentActivity()); // keep previous
+		expense.setCurrentActivity(ExpenseActivity.ER_MANAGER_REVIEW); // next step after submission
 		ExpenseHistory history = new ExpenseHistory();
 		history.setExpense(expense);
 		history.setActionBy(loggedInUser);
+		history.setReviewer(loggedInUser.getManager());
 		history.setAction(ExpenseStatus.RESUBMITTED);
 		history.setActionDate(LocalDateTime.now());
+		history.setPreviousActivity(expense.getPreviousActivity());
+		history.setCurrentActivity(expense.getCurrentActivity());
 		expHistoryRepo.save(history);
 
 		expenseRepo.save(expense);
@@ -430,7 +445,8 @@ public class ExpenseService {
 				.map( h -> new ExpenseHistoryDTO(h.getActionDate(),
 													h.getActionBy().getEmail(),
 													h.getAction(), 
-													h.getComment()
+													h.getComment(),
+													h.getReviewer().getEmail()
 													))
 				.toList();
 	}
@@ -449,12 +465,20 @@ public class ExpenseService {
 		{
 			throw new DuplicateExpenseException("Same Expense already exists");
 		}
+		 ChargeCode chargeCode = chargeCodeRepo
+			        .findByChargeCode(expDto.getChargeCode());
+	     if (chargeCode == null) 
+	     {
+			  throw new IllegalArgumentException("Invalid charge code: " + expDto.getChargeCode());
+		 }
 		  Expenses expense = new Expenses();
 		    expense.setExpenseType(expDto.getExpenseType());
 		    expense.setAmount(expDto.getAmount());
 		    expense.setExpenseDate(expDto.getExpenseDate());
 		    expense.setUsers(user);
+		    expense.setChargeCode(chargeCode.getChargeCode());	
 		    expense.setStatus(ExpenseStatus.SAVEANDCLOSE);
+		    expense.setCurrentActivity(ExpenseActivity.ER_CREATE);
 		    Expenses saved = expenseRepo.save(expense);
 		    return mapToResponse(saved);
 	
@@ -498,24 +522,6 @@ public class ExpenseService {
 	    receipt.setUploadedAt(LocalDateTime.now());
 		return  expReceiptRepo.save(receipt);
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	
 }

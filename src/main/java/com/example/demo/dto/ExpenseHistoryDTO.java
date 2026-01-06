@@ -10,13 +10,19 @@ public class ExpenseHistoryDTO {
     private String performedBy;
     private ExpenseStatus action;
     private String comment;
+    private String reviwer;
 
-    public ExpenseHistoryDTO(LocalDateTime date, String performedBy, ExpenseStatus action, String comment) {
-        this.date = date;
-        this.performedBy = performedBy;
-        this.action = action;
-        this.comment = comment;
-    }
+   
+
+	public ExpenseHistoryDTO(LocalDateTime date, String performedBy, ExpenseStatus action, String comment,
+			String reviwer) {
+		super();
+		this.date = date;
+		this.performedBy = performedBy;
+		this.action = action;
+		this.comment = comment;
+		this.reviwer = reviwer;
+	}
 
 	public LocalDateTime getDate() {
 		return date;
@@ -28,6 +34,10 @@ public class ExpenseHistoryDTO {
 
 	public ExpenseStatus getAction() {
 		return action;
+	}
+
+	public String getReviwer() {
+		return reviwer;
 	}
 
 	public String getComment() {

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import com.example.demo.enums.ExpenseActivity;
 import com.example.demo.enums.ExpenseStatus;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -22,6 +23,7 @@ public class ExpenseHistory {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
+	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "expense_id")
 	private Expenses expense;
@@ -30,10 +32,25 @@ public class ExpenseHistory {
 	@JoinColumn(name = "user_id")
 	private Users actionBy;
 	
+	@ManyToOne
+	@JoinColumn(name = "reviewer_id")
+	private Users reviewer;
+
+	
+    public Users getReviewer() {
+		return reviewer;
+	}
+	public void setReviewer(Users reviewer) {
+		this.reviewer = reviewer;
+	}
+	@Enumerated(EnumType.STRING)
+    private ExpenseActivity previousActivity;
+    
     @Enumerated(EnumType.STRING)
-    private ExpenseActivity activity;
+    private ExpenseActivity currentActivity;
 	
 	@Enumerated(EnumType.STRING)
+	@Column(name = "action")
 	private ExpenseStatus action;
 	
 	private LocalDateTime actionDate;
@@ -43,6 +60,18 @@ public class ExpenseHistory {
 	}
 	public void setId(Long id) {
 		this.id = id;
+	}
+	public ExpenseActivity getPreviousActivity() {
+		return previousActivity;
+	}
+	public void setPreviousActivity(ExpenseActivity previousActivity) {
+		this.previousActivity = previousActivity;
+	}
+	public ExpenseActivity getCurrentActivity() {
+		return currentActivity;
+	}
+	public void setCurrentActivity(ExpenseActivity currentActivity) {
+		this.currentActivity = currentActivity;
 	}
 	public Expenses getExpense() {
 		return expense;
@@ -74,6 +103,5 @@ public class ExpenseHistory {
 	public void setComment(String comment) {
 		this.comment = comment;
 	}
-	
 	
 }

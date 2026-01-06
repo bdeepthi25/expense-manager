@@ -3,7 +3,10 @@ package com.example.demo.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.example.demo.enums.ExpenseActivity;
 import com.example.demo.enums.ExpenseStatus;
 import com.example.demo.model.Expenses;
 import com.example.demo.model.Users;
@@ -42,6 +45,20 @@ public interface ExpenseRepository extends JpaRepository<Expenses, Long>{
             LocalDate expenseDate,
             Users user);
 	public Page<Expenses> findByApprover_IdAndStatusIn(Long id, List<ExpenseStatus> statuses, Pageable pageable);
+	
+	@Query("""
+			   SELECT e FROM Expenses e
+			   WHERE e.currentActivity = :activity
+			     AND e.lockedBy IS NULL
+			     AND EXISTS (
+			         SELECT 1 FROM Auditors a
+			         WHERE a.user.id = :auditorId
+			           AND a.isActive = true
+			     )
+			""")
+	public Page<Expenses> findExpensesForAuditReview(
+			@Param("activity") ExpenseActivity erAuditReview, 
+			@Param("auditorId") Long id, Pageable pageable);
 
 	
 
